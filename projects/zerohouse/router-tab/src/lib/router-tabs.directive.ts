@@ -10,6 +10,7 @@ import {RouterTab} from './router-tab.directive';
 export class RouterTabs implements AfterContentInit, OnDestroy {
 
   subscription = new Subscription();
+  initialNavigationComplete = false;
 
   @ContentChildren(RouterTab) routerTabs: QueryList<RouterTab>;
 
@@ -22,14 +23,16 @@ export class RouterTabs implements AfterContentInit, OnDestroy {
 
   ngAfterContentInit(): void {
     this.setIndex();
+    this.initialNavigationComplete = false;
     this.subscription.add(this.router.events.subscribe((e) => {
       if (e instanceof NavigationEnd) {
         this.setIndex();
+        this.initialNavigationComplete = true;
       }
     }));
     this.subscription.add(this.host.selectedTabChange.subscribe(() => {
       const tab = this.routerTabs.find(item => item.tab.isActive);
-      if (!tab) {
+      if (!tab || !this.initialNavigationComplete) {
         return;
       }
       this.router.navigateByUrl(tab.link.urlTree);
