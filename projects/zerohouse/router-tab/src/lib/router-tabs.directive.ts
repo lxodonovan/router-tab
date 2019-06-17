@@ -1,47 +1,50 @@
-import {AfterContentInit, ContentChildren, Directive, OnDestroy, QueryList} from '@angular/core';
-import {MatTabGroup} from '@angular/material';
-import {Subscription} from 'rxjs';
-import {NavigationEnd, Router} from '@angular/router';
-import {RouterTab} from './router-tab.directive';
+import { AfterContentInit, ContentChildren, Directive, OnDestroy, QueryList, OnInit } from '@angular/core';
+import { MatTabGroup } from '@angular/material';
+import { Subscription } from 'rxjs';
+import { NavigationEnd, Router, RouterLinkActive, ActivatedRoute } from '@angular/router';
+import { RouterTab } from './router-tab.directive';
 
 @Directive({
   selector: '[routerTabs]'
 })
-export class RouterTabs implements AfterContentInit, OnDestroy {
+export class RouterTabs implements OnDestroy, AfterContentInit {
 
-  subscription = new Subscription();
-  initialNavigationComplete = false;
+  private initialNav = true;
+  private subscription = new Subscription();
 
   @ContentChildren(RouterTab) routerTabs: QueryList<RouterTab>;
 
   constructor(private host: MatTabGroup, private router: Router) {
+
+  }
+
+  ngAfterContentInit(): void {
+
+    this.subscription.add(this.router.events.subscribe((e) => {
+      if (this.initialNav && e instanceof NavigationEnd) {
+        this.initialNav = false;
+        this.setIndex();
+
+        this.subscription.add(this.host.selectedIndexChange.subscribe(indx => {
+          const activeTab = this.routerTabs.find(x => x.tab.isActive);
+          if (activeTab) {
+            if (!this.router.isActive(activeTab.link.urlTree, false)) {
+              this.router.navigateByUrl(activeTab.link.urlTree);
+            }
+          }
+
+        }));
+
+      }
+    }));
   }
 
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
   }
 
-  ngAfterContentInit(): void {
-    this.setIndex();
-    this.initialNavigationComplete = false;
-    this.subscription.add(this.router.events.subscribe((e) => {
-      if (e instanceof NavigationEnd) {
-        this.setIndex();
-        this.initialNavigationComplete = true;
-      }
-    }));
-    this.subscription.add(this.host.selectedTabChange.subscribe(() => {
-      const tab = this.routerTabs.find(item => item.tab.isActive);
-      if (!tab || !this.initialNavigationComplete) {
-        return;
-      }
-      this.router.navigateByUrl(tab.link.urlTree);
-      return true;
-    }));
-  }
-
-
   private setIndex() {
+
     this.routerTabs.find((tab, i) => {
       if (!this.router.isActive(tab.link.urlTree, false))
         return false;
